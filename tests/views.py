@@ -7,7 +7,7 @@ from .serializers import QuestionariesSerializer, TeseSerializer
 from rest_framework import mixins
 from rest_framework import generics
 from rest_framework import status
-from .models import Questionaries,Answers, Test, SINGLE, MULTIPLE
+from .models import Questionaries,Answers, Test, SINGLE, MULTIPLE,TestScoresScores
 import json
 # Create your views here.
 
@@ -65,27 +65,28 @@ class SubmitTest(mixins.ListModelMixin,
         testParent = Test.objects.get(exam_id=request.data['exam_id'])
         if testParent.completed_at:
             return Response({'msg':'Test has been alredy submitted'}, status=status.HTTP_400_BAD_REQUEST)
+        submited_answers = request.data['answers']
+        print(len(submited_answers),testParent.questions_count)
         if len(submited_answers)==testParent.questions_count:
             if testParent.questions.questions_type== SINGLE:
-                submited_answers = request.data['answers']
                 for k,v in submited_answers.items():
-                    question = Questionaries.objects.get(k)
+                    question = Questionaries.objects.get(id=int(k))
                     question.options.all().values_list('id')
-                    if v not in question.options.all().values_list('id'):
+                    print(question.options.all().values_list('id',flat=True),v)
+                    if v not in question.options.all().values_list('id',flat=True):
                         return Response({"msg":"incorrect options, please select answer from given option "}, 
                         status=status.HTTP_400_BAD_REQUEST)
                     try:
+                        print(question.answers.all().get(id=v))
                         question.answers.all().get(id=v)
                         passed = passed +1
-                    except Questionaries.DoesNotExist:
+                    except Exception as e :
+                        print(e)
                         failed = failed +1
-                return Response({"msg":"your  answers are" + passed + "and your wrong answers are" + failed},
-                status= status.HTTP_200_OK
-                )
             if testParent.questions.questions_type== MULTIPLE:
                 submited_answers = request.data['answers']
                 for k,v in submited_answers.items():
-                    question = Questionaries.objects.get(k)
+                    question = Questionaries.objects.get(id=int(k))
                     for ans in v:
                         if ans not in question.options.all().values_list('id'):
                             return Response({"msg":"incorrect options, please select answer from given option "}, 
@@ -95,9 +96,14 @@ class SubmitTest(mixins.ListModelMixin,
                         passed = passed +1
                     else:
                         failed = failed +1
-                return Response({"msg":"your  answers are" + passed + "and your wrong answers are" + failed},
-                status= status.HTTP_200_OK
-                )
+            newScore = TestScoresScores()
+            newScore.score = passed
+            newScore.user_id = request.data['user']
+            newScore.test = testParent
+            newScore.save()
+            return Response({"msg":"your  answers are " + str(passed) + " and your wrong answers are " + str(failed)},
+            status= status.HTTP_200_OK
+            )
         else:
             return Response({"msg":"incomplete answers, please attempt all answers"}, status=status.HTTP_400_BAD_REQUEST)
 

@@ -54,6 +54,7 @@ class TestScoresScores(models.Model):
 
     test= models.ForeignKey(Test, on_delete=models.SET_NULL, null= True)
     score=  models.FloatField(default=0.00)
+    user= models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 
     def __str__(self):
         return self.test__exam_id + self.score
