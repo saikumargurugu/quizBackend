@@ -7,7 +7,7 @@ from .serializers import QuestionariesSerializer, TeseSerializer
 from rest_framework import mixins
 from rest_framework import generics
 from rest_framework import status
-from .models import Questionaries,Answers, Options, SINGLE, MULTIPLE
+from .models import Questionaries,Answers, Test, SINGLE, MULTIPLE
 import json
 # Create your views here.
 
@@ -18,7 +18,8 @@ class SingleQuestionaryView(mixins.ListModelMixin,
     serializer_class = QuestionariesSerializer
 
     def get_queryset(self):
-        return Questionaries.objects.filter(question_type=SINGLE)
+        print('===================')
+        return Questionaries.objects.filter(questionaries_parent_id=int(self.request.data['question_parent_id']))
 
     def post(self, request, *args, **kwargs):
         list= self.list(request, *args, **kwargs)
@@ -27,7 +28,8 @@ class SingleQuestionaryView(mixins.ListModelMixin,
         serializer = TeseSerializer(data=request.data)
         if serializer.is_valid():
             obj=serializer.save()
-            print(json.loads(json.dumps(list.data)))
+            obj.questions_count = len(list.data)
+            obj.save()
             list.data= {
                 "exam_id":obj.exam_id,
                 "quetions": list.data
@@ -40,7 +42,7 @@ class MultipleQuestionaryView(mixins.ListModelMixin,
     serializer_class = QuestionariesSerializer
 
     def get_queryset(self):
-        return Questionaries.objects.filter(question_type=MULTIPLE)
+        return Questionaries.objects.filter(questionaries_parent_id=int(self.request.data['question_parent_id']))
 
     def get(self, request, *args, **kwargs):
         list =self.list(request, *args, **kwargs)
@@ -57,10 +59,46 @@ class SubmitTest(mixins.ListModelMixin,
     permission_classes=[]
     serializer_class = QuestionariesSerializer
 
-    def get_queryset(self):
-        return Questionaries.objects.filter(question_type=MULTIPLE)
+    def post(self, request):
+        passed = 0
+        failed = 0
+        testParent = Test.objects.get(exam_id=request.data['exam_id'])
+        if testParent.completed_at:
+            return Response({'msg':'Test has been alredy submitted'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(submited_answers)==testParent.questions_count:
+            if testParent.questions.questions_type== SINGLE:
+                submited_answers = request.data['answers']
+                for k,v in submited_answers.items():
+                    question = Questionaries.objects.get(k)
+                    question.options.all().values_list('id')
+                    if v not in question.options.all().values_list('id'):
+                        return Response({"msg":"incorrect options, please select answer from given option "}, 
+                        status=status.HTTP_400_BAD_REQUEST)
+                    try:
+                        question.answers.all().get(id=v)
+                        passed = passed +1
+                    except Questionaries.DoesNotExist:
+                        failed = failed +1
+                return Response({"msg":"your  answers are" + passed + "and your wrong answers are" + failed},
+                status= status.HTTP_200_OK
+                )
+            if testParent.questions.questions_type== MULTIPLE:
+                submited_answers = request.data['answers']
+                for k,v in submited_answers.items():
+                    question = Questionaries.objects.get(k)
+                    for ans in v:
+                        if ans not in question.options.all().values_list('id'):
+                            return Response({"msg":"incorrect options, please select answer from given option "}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+                    correct_ids=question.answers.all().values_list('id')
+                    if correct_ids.sort() == v.sort():
+                        passed = passed +1
+                    else:
+                        failed = failed +1
+                return Response({"msg":"your  answers are" + passed + "and your wrong answers are" + failed},
+                status= status.HTTP_200_OK
+                )
+        else:
+            return Response({"msg":"incomplete answers, please attempt all answers"}, status=status.HTTP_400_BAD_REQUEST)
 
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-      
+        return Response({"msg":"oops something went wront"}, status=status.HTTP_400_BAD_REQUEST)
