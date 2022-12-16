@@ -11,10 +11,6 @@ QUESTION_TYPES = (
     (MULTIPLE,'MULTIPLE')
 )
 
-class Answers(models.Model):
-    answers = models.CharField(max_length=500)
-    def __str__(self):
-        return self.answers
 
 class Options(models.Model):
     option= models.CharField(max_length=500)
@@ -31,7 +27,7 @@ class QuestionariesParent(models.Model):
 class Questionaries(models.Model):
     question = models.CharField(max_length=500)
     options = models.ManyToManyField(Options, related_name='question_options')
-    answers = models.ManyToManyField(Answers, related_name='question_answers')
+    answers = models.ManyToManyField(Options, related_name='question_answers')
     questionaries_parent= models.ForeignKey(QuestionariesParent,null=True, on_delete=models.CASCADE)
     def __str__(self):
         return self.question

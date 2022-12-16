@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Questionaries, Answers, Options, Test
+from .models import Questionaries, Options, Test
 from django.utils import timezone
 import uuid
 

@@ -1,14 +1,14 @@
 from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import  Response
 from .serializers import QuestionariesSerializer, TeseSerializer
 from rest_framework import mixins
 from rest_framework import generics
 from rest_framework import status
-from .models import Questionaries,Answers, Test, SINGLE, MULTIPLE,TestScoresScores
-import json
+from .models import Questionaries, Test, SINGLE, MULTIPLE,TestScoresScores
+from django.utils import timezone
+
 # Create your views here.
 
 
@@ -66,22 +66,25 @@ class SubmitTest(mixins.ListModelMixin,
         if testParent.completed_at:
             return Response({'msg':'Test has been alredy submitted'}, status=status.HTTP_400_BAD_REQUEST)
         submited_answers = request.data['answers']
-        print(len(submited_answers),testParent.questions_count)
+        print(testParent.questions.questions_type,len(submited_answers),testParent.questions_count)
         if len(submited_answers)==testParent.questions_count:
             if testParent.questions.questions_type== SINGLE:
                 for k,v in submited_answers.items():
                     question = Questionaries.objects.get(id=int(k))
+                    print("QOBJ",question)
                     question.options.all().values_list('id')
                     print(question.options.all().values_list('id',flat=True),v)
                     if v not in question.options.all().values_list('id',flat=True):
                         return Response({"msg":"incorrect options, please select answer from given option "}, 
                         status=status.HTTP_400_BAD_REQUEST)
                     try:
-                        print(question.answers.all().get(id=v))
+                        print("Question",k,v,question)
+                        print("=======",question.answers.all().values_list('id'))
                         question.answers.all().get(id=v)
                         passed = passed +1
                     except Exception as e :
                         print(e)
+                        print(k,v)
                         failed = failed +1
             if testParent.questions.questions_type== MULTIPLE:
                 submited_answers = request.data['answers']
@@ -101,6 +104,7 @@ class SubmitTest(mixins.ListModelMixin,
             newScore.user_id = request.data['user']
             newScore.test = testParent
             newScore.save()
+            # testParent.completed_at = timezone.now()
             return Response({"msg":"your  answers are " + str(passed) + " and your wrong answers are " + str(failed)},
             status= status.HTTP_200_OK
             )

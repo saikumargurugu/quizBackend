@@ -1,8 +1,7 @@
 from django.contrib import admin
-from .models import Answers, Questionaries, Options, Test, TestScoresScores, QuestionariesParent
+from .models import Questionaries, Options, Test, TestScoresScores, QuestionariesParent
 
 
-admin.site.register(Answers)
 admin.site.register(Questionaries)
 admin.site.register(Options)
 admin.site.register(TestScoresScores)
